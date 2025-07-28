@@ -43,6 +43,7 @@ saphyr = { path = "saphyr" }
 saphyr-bench = { path = "bench" }
 saphyr-parser = { path = "parser" }
 thiserror = "2.0.12"
+indoc = "2.0.6"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
