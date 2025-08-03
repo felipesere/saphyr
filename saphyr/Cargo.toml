@@ -29,6 +29,7 @@ saphyr-parser = { workspace = true }
 
 [dev-dependencies]
 quickcheck = { workspace = true }
+indoc = { workspace = true }
 
 [lints]
 workspace = true

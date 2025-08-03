@@ -9,6 +9,8 @@ use saphyr_parser::{Marker, ScalarStyle, Span, Tag};
 
 use crate::{LoadableYamlNode, Scalar, Yaml, YamlData};
 
+use super::{Accessor, SafelyIndex};
+
 /// A YAML node with [`Span`]s pointing to the start of the node.
 ///
 /// This structure does not implement functions to operate on the YAML object. To access those,
@@ -85,6 +87,20 @@ impl<'input> MarkedYaml<'input> {
                 span: Span::default(),
             },
         )
+    }
+
+    /// Index into a YAML sequence or map.
+    /// A string index can be used to access a value in a map, and a usize index can be used to access an element of an sequence.
+    ///
+    /// Original implementation is from `serde_yaml` [get](https://docs.rs/serde_yaml/latest/serde_yaml/value/enum.Value.html#method.get)
+    pub fn get<I: Accessor<MarkedYaml<'input>> + 'input>(&self, index: I) -> Option<&Self> {
+        index.index_into(self)
+    }
+}
+
+impl<'a> SafelyIndex<MarkedYaml<'a>> for MarkedYaml<'a> {
+    fn get(&self, key: impl Accessor<MarkedYaml<'a>>) -> Option<&MarkedYaml<'a>> {
+        key.index_into(self)
     }
 }
 
