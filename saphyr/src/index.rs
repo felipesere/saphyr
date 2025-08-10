@@ -2,68 +2,112 @@ use crate::{annotated, MarkedYaml, MarkedYamlOwned, Yaml, YamlData, YamlDataOwne
 
 /// A trait to safely index into a structure with an `Accessor`.
 /// This will never panic and return an `Option::None` on failure.
-pub trait SafelyIndex<Y>: Sized {
+pub trait SafelyIndex<X = Self> {
     /// A trait to index into a structure with an `Index`
-    fn get(&self, key: impl Accessor<Y>) -> Option<&Y>;
+    fn get(&self, key: impl Into<Accessor>) -> Option<&X>;
 }
 
-impl<YAML, Z: SafelyIndex<YAML>> SafelyIndex<YAML> for Option<Z> {
-    fn get(&self, key: impl Accessor<YAML>) -> Option<&YAML> {
+pub enum Accessor {
+    Field(String),
+    Index(usize),
+}
+
+impl From<usize> for Accessor {
+    fn from(val: usize) -> Self {
+        Accessor::Index(val)
+    }
+}
+
+impl From<String> for Accessor {
+    fn from(val: String) -> Self {
+        Accessor::Field(val)
+    }
+}
+
+impl From<&str> for Accessor {
+    fn from(val: &str) -> Self {
+        Accessor::Field(val.to_string())
+    }
+}
+
+impl<Z: SafelyIndex> SafelyIndex<Z> for Option<Z> {
+    fn get(&self, key: impl Into<Accessor>) -> Option<&Z> {
         self.as_ref().and_then(|data| data.get(key))
     }
 }
 
-impl<YAML, T: SafelyIndex<YAML>> SafelyIndex<YAML> for &T {
-    fn get(&self, key: impl Accessor<YAML>) -> Option<&YAML> {
+impl<Z: SafelyIndex> SafelyIndex<Z> for Option<&Z> {
+    fn get(&self, key: impl Into<Accessor>) -> Option<&Z> {
+        self.as_ref().and_then(|data| data.get(key))
+    }
+}
+
+impl<T: SafelyIndex> SafelyIndex<T> for &T {
+    fn get(&self, key: impl Into<Accessor>) -> Option<&T> {
         (*self).get(key)
     }
 }
 
-impl SafelyIndex<YamlOwned> for YamlOwned {
-    fn get(&self, key: impl Accessor<YamlOwned>) -> Option<&YamlOwned> {
-        key.index_into(self)
+impl SafelyIndex for YamlOwned {
+    fn get(&self, key: impl Into<Accessor>) -> Option<&YamlOwned> {
+        match key.into() {
+            Accessor::Field(f) => self.as_mapping_get(f.as_str()),
+            Accessor::Index(i) => self.as_sequence_get(i),
+        }
     }
 }
 
-impl<'input> SafelyIndex<Yaml<'input>> for Yaml<'input> {
-    fn get(&self, key: impl Accessor<Yaml<'input>>) -> Option<&Yaml<'input>> {
-        key.index_into(self)
+impl<'input> SafelyIndex for Yaml<'input> {
+    fn get(&self, key: impl Into<Accessor>) -> Option<&Yaml<'input>> {
+        match key.into() {
+            Accessor::Field(f) => self.as_mapping_get(f.as_str()),
+            Accessor::Index(i) => self.as_sequence_get(i),
+        }
     }
 }
 
-impl<N> SafelyIndex<YamlDataOwned<N>> for YamlDataOwned<N>
+impl<N> SafelyIndex<N> for YamlDataOwned<N>
 where
-    N: annotated::AnnotatedNodeOwned + From<Self>,
+    N: annotated::AnnotatedNodeOwned
+        + From<Self>
+        + PartialEq<<N as annotated::AnnotatedNodeOwned>::HashKey>,
 {
-    fn get(&self, key: impl Accessor<YamlDataOwned<N>>) -> Option<&YamlDataOwned<N>> {
-        key.index_into(self)
+    fn get(&self, key: impl Into<Accessor>) -> Option<&N> {
+        match key.into() {
+            Accessor::Field(f) => self.as_mapping_get(f.as_str()),
+            Accessor::Index(i) => self.as_sequence_get(i),
+        }
     }
 }
 
-impl<'input, N> SafelyIndex<YamlData<'input, N>> for YamlData<'input, N>
+impl<N> SafelyIndex<N> for YamlData<'_, N>
 where
-    N: annotated::AnnotatedNode + From<Self>,
+    N: annotated::AnnotatedNode
+        + From<Self>
+        + for<'a> PartialEq<<N as annotated::AnnotatedNode>::HashKey<'a>>,
 {
-    fn get(&self, key: impl Accessor<YamlData<'input, N>>) -> Option<&YamlData<'input, N>> {
-        key.index_into(self)
+    fn get(&self, key: impl Into<Accessor>) -> Option<&N> {
+        match key.into() {
+            Accessor::Index(i) => self.as_sequence_get(i),
+            Accessor::Field(f) => self.as_mapping_get(f.as_str()),
+        }
     }
 }
 
-// These will have to be cleverer!
-impl<'a> SafelyIndex<MarkedYaml<'a>> for MarkedYaml<'a> {
-    fn get(&self, key: impl Accessor<MarkedYaml<'a>>) -> Option<&MarkedYaml<'a>> {
-        key.index_into(self)
+impl<'a> SafelyIndex for MarkedYaml<'a> {
+    fn get(&self, key: impl Into<Accessor>) -> Option<&MarkedYaml<'a>> {
+        match key.into() {
+            Accessor::Field(f) => self.data.as_mapping_get(f.as_str()),
+            Accessor::Index(i) => self.data.as_sequence_get(i),
+        }
     }
 }
 
-impl SafelyIndex<MarkedYamlOwned> for MarkedYamlOwned {
-    fn get(&self, key: impl super::Accessor<MarkedYamlOwned>) -> Option<&MarkedYamlOwned> {
-        key.index_into(self)
+impl SafelyIndex for MarkedYamlOwned {
+    fn get(&self, key: impl Into<Accessor>) -> Option<&MarkedYamlOwned> {
+        match key.into() {
+            Accessor::Field(f) => self.data.as_mapping_get(f.as_str()),
+            Accessor::Index(i) => self.data.as_sequence_get(i),
+        }
     }
-}
-
-/// A trait to denote a type that can be used for indexing YAML
-pub trait Accessor<Y> {
-    /// something important
-    fn index_into(self, yaml: &Y) -> Option<&Y>;
 }
