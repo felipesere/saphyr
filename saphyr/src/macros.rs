@@ -586,7 +586,6 @@ macro_rules! define_yaml_object_index_traits_impl (
         scalartype = { $scalartype:tt },
         selfname = $selfname:literal
     ) => (
-
 impl<'key $(, $($generic),+)? > Index<&'key str> for $yaml $( where $($whereclause)+ )? {
     type Output = $nodetype;
 
@@ -702,82 +701,17 @@ impl $(<$($generic),+>)? IndexMut<usize> for $yaml $( where $($whereclause)+ )? 
         }
     }
 }
-    );
-);
 
-/// Generate the [`SafelyIndex`] impls for all YAML objects.
-macro_rules! define_yaml_object_safely_index (
-    (
-
-        $yaml:ty,
-        output_type = $output_type:tt,
-        $( < $( $generic:tt ),+ >, )?
-        $( where { $($whereclause:tt)+ }, )?
-        $(accessor = $accessor:ident)?
-    ) => (
 #[allow(clippy::needless_lifetimes)]
-impl $(< $( $generic ),+ >)? crate::index::SafelyIndex<$output_type> for $yaml $(where $($whereclause)+)? {
-    fn get(&self, key: impl Into<crate::index::Accessor>) -> Option<&$output_type> {
+impl $(< $( $generic ),+ >)? crate::index::SafelyIndex<$nodetype> for $yaml $(where $($whereclause)+)? {
+    fn get(&self, key: impl Into<crate::index::Accessor>) -> Option<&$nodetype> {
         match key.into() {
-            crate::index::Accessor::Field(f) => self$(.$accessor)?.as_mapping_get(f.as_str()),
-            crate::index::Accessor::Index(i) => self$(.$accessor)?.as_sequence_get(i),
+            crate::index::Accessor::Field(f) => self.as_mapping_get(f.as_str()),
+            crate::index::Accessor::Index(i) => self.as_sequence_get(i),
         }
     }
 }
     );
-    (
-
-        $yaml:ty,
-        $( < $( $generic:tt ),+ >, )?
-        $( where { $($whereclause:tt)+ }, )?
-        $(accessor = $accessor:ident)?
-    ) => (
-define_yaml_object_safely_index!(
-    $yaml,
-    output_type = $yaml,
-    $(< $( $generic ),+ >,)?
-    $( where { $($whereclause)+ }, )?
-    $( accessor = $accessor )?
-);
-    );
-);
-
-define_yaml_object_safely_index!(crate::MarkedYamlOwned, accessor = data);
-define_yaml_object_safely_index!(
-    crate::MarkedYaml<'input>,
-    <'input>,
-    accessor = data
-);
-define_yaml_object_safely_index!(crate::YamlOwned,);
-define_yaml_object_safely_index!(
-    crate::Yaml<'input>,
-    <'input>,
-);
-define_yaml_object_safely_index!(
-    crate::YamlData<'input, Node>,
-    output_type = Node,
-    < 'input, Node>,
-    where {
-        Node: std::hash::Hash
-            + std::cmp::Eq
-            + From<Self>
-            + From<crate::YamlData<'input, Node>>
-            + crate::annotated::AnnotatedNode
-            + for<'a> std::cmp::PartialEq<Node::HashKey<'a>>,
-    },
-);
-define_yaml_object_safely_index!(
-    crate::YamlDataOwned<Node>,
-    output_type = Node,
-    < 'input, Node>,
-    where {
-        Node: std::hash::Hash
-            + std::cmp::Eq
-            + From<Self>
-            + From<crate::YamlDataOwned<Node>>
-            + crate::annotated::AnnotatedNodeOwned
-            + for<'a> std::cmp::PartialEq<Node::HashKey>,
-    },
 );
 
 // ================================== HIGH-LEVEL DEFINE MACROS ==================================
