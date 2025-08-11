@@ -1,12 +1,15 @@
 /// A trait to safely index into a structure with an `Accessor`.
 /// This will never panic and return an `Option::None` on failure.
 pub trait SafelyIndex<X = Self> {
-    /// A trait to index into a structure with an `Index`
+    /// Attempt to access a field
     fn get(&self, key: impl Into<Accessor>) -> Option<&X>;
 }
 
+/// A way to access fields via the [`SafelyIndex`] trait
 pub enum Accessor {
+    /// Accessing a string field from a mapping
     Field(String),
+    /// Accessing an element from a sequence
     Index(usize),
 }
 
