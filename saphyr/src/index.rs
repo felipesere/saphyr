@@ -48,3 +48,46 @@ impl<T: SafelyIndex> SafelyIndex<T> for &T {
         (*self).get(key)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::string::ToString;
+
+    use crate::{LoadableYamlNode, SafelyIndex, Yaml};
+
+    #[test]
+    fn indexing_into_available_structures() {
+        let node = Yaml::load_from_str(
+            r#"
+person:
+  name: "Jim Halpert"
+  workplace:
+    - name: "Dunder Mifflin"
+      role: "Manager"
+  tenure_years: 5
+"#,
+        )
+        .unwrap()
+        .first()
+        .cloned()
+        .unwrap();
+
+        let name = node
+            .get("person")
+            .get("name")
+            .and_then(|name| name.as_str())
+            .map(ToString::to_string);
+
+        assert!(name.is_some_and(|n| n == "Jim Halpert"));
+
+        let role = node
+            .get("person")
+            .get("workplace")
+            .get(0)
+            .get("role".to_string()) //just for example...
+            .and_then(|role| role.as_str())
+            .map(ToString::to_string);
+
+        assert!(role.is_some_and(|r| r == "Manager"));
+    }
+}
